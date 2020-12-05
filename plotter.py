@@ -31,58 +31,74 @@ from mpl_toolkits.basemap import Basemap
 from os import listdir
 from os.path import isfile, join
 import argparse
+from typing import List, Tuple
 
-'''
-Initialize and return the parser.
-'''
 def setupParser() -> argparse.ArgumentParser:
-	parser = argparse.ArgumentParser(description='NetCDF file cruncher for contrail simulation datasets.')
+	"""
+	Initialize and return the parser.
+	"""
+	parser = argparse.ArgumentParser(prog='NetCDF File Cruncher', description='NetCDF file cruncher for contrail simulation datasets.')
 
 	# required arguments
-	parser.add_argument('datasets', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, diff, F2000_Contrail, F2000')
-	parser.add_argument('-v', '--vars', required=True, type=str, nargs='+', help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
+	parser.add_argument('datasets', action='store_const', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, F2000_Contrail, F2000')
+	parser.add_argument('-v', '--vars', action='store_const', required=True, type=str, nargs='+', help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
 	
 	# optional arguments
-	parser.add_argument('-d', '--diff', action='store_const', const=True, help='Analyze two datasets.')
-	parser.add_argument('-f', '--frac', action='store_const', const=True, help='Analyze fractional difference. -diff must be supplied.')
-	parser.add_argument('-l', '--lev', type=int, help='level (pressure, hPa). Integer from [0, 31].')
+	parser.add_argument('-d', '--diff', action='store_true', const=True, help='Analyze two datasets (second minus first).')
+	parser.add_argument('-f', '--frac', action='store_true', const=True, help='Analyze fractional difference. -diff must be supplied.')
+	parser.add_argument('-l', '--lev', action='store_const', type=int, nargs='+', \
+		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
 	
+	# miscellaneous
+	parser.add_argument('--version', action='version', version='%(prog)s 1.1')
+
 	return parser
 
-'''
-Verify that potentially program-breaking arguments don't break the program.
-'''
 def validateArguments(n: argparse.Namespace):
-	assert True if n.frac == (not n.diff) else False, "If -f is supplied, -d must be supplied."
-	assert len(n.datasets) > 2 or (len(n.datasets) == 2 and not n.diff), "Too many datasets supplied."
-	assert len(n.datasets) == 2, "Please specify both datasets."
+	"""
+	Verify that potentially program-breaking arguments don't break the program-- check interactions that argparse can't
+	catch and/or specific values.
+	"""
+	assert False if n.frac == (not n.diff) else True, "If -f is supplied, -d must be supplied."
+	assert len(n.datasets) < 2 or (len(n.datasets) == 2 and n.diff), "Too many datasets supplied."
+	assert len(n.lev) <= 2, "Please specify one or two levels."
+	assert len(n.lev) == 1 or n.lev[1] > n.lev[0], "Ensure the level bounds are in ascending order."
 
-'''
-Handle arguments by calling the right functions.
-'''
-def handleArguments(n: argparse.Namespace):
-	pass
+	datasets = ["FHIST", "FHIST_Contrail", "F2000_Contrail", "F2000"]
+	for dataset in n.datasets:
+		assert dataset in datasets, "Invalid dataset names."
+	for key in n.vars:
+		assert key in arbitrary_file.variables.keys(), "Invalid variable names."
 
-'''
-Given a list of substrings and the length of the shortest substring, find the farthest/greatest index at which a 
-slash occurs before the strings diverge.
-'''
+def handleArguments() -> Tuple[List[str], bool, bool, List[int], List[str]]:
+	"""
+	Overall argument handler.
+	"""
+	parser = setupParser()
+	name = parser.parse_args(sys.argv[1:])
+	validateArguments(name)
+	return name.datasets, name.diff, name.frac, name.lev, name.vars
+
 def searchCommonSubstring(shortest_len: int, l: list) -> int:
+	"""
+	Given a list of substrings and the length of the shortest substring, find the farthest/greatest index at which a 
+	slash occurs before the strings diverge.
+	"""
 	slash = 0
 	for pos in range(0, shortest_len):
 		for i in range(0, len(l) - 1):
 			if not (l[i][pos] == l[i + 1][pos]):
-				# return pos to return the specific divergence point
+				# pos is the specific divergence point
 				return slash
 			elif l[i][pos] == '/':
 				slash = pos
 	return slash
 
-'''
-Given a list of strings, remove the common substring (beginning from the first element) from each element of the list 
-and return that list. The substrings must all begin and end at the same indices.
-'''
 def removeCommonSubstring(l: list) -> list:
+	"""
+	Given a list of strings, remove the common substring (beginning from the first element) from each element of the list 
+	and return that list. The substrings must all begin and end at the same indices.
+	"""
 	# length checking
 	if len(l) == 1:
 		print("The longest common substring is the entirety of the single\
@@ -169,14 +185,8 @@ def plot():
 				plt.savefig(dest + files[x][:-3] + ".png", dpi=dpi)
 				plt.clf()
 
-'''
-The netCDF file was selected for convenience. It can arbitrarily be selected from the dataset you're working with.
-'''
-def setupAverage(var_choice: str, base_file="/home/kaw/contrails/Ctrl.cam.h0.2005-01.nc"):
-	if not local:
-		ds = Dataset(base_file)
-	else:
-		ds = Dataset("Y:\contrails\Ctrl.cam.h0.2005-01.nc")
+def setupAverage(var_choice: str):
+	ds = arbitrary_file
 	
 	lats = ds.variables['lat'][:]
 	lons = ds.variables['lon'][:]
@@ -396,62 +406,12 @@ def fractionalChange(var: str, lev=17, contrail_filepath=remote_source[3], no_co
 	plt.title(var + " - fractional change" + ", level = " + str(lev))
 	plt.savefig(dest + "frac " + var + "_lev_" + str(lev) + ".png", dpi=dpi)
 	plt.clf()
-
-# TODO: Actual proper input validation w/ argparse
 	
 if __name__ == "__main__":
 	if local:
 		print("Please don't run it like this.")
 		sys.exit(0)
 	
-	if len(sys.argv) < 3:
-		print("\
-Usage: python3 plotter.py <operation: str> <variable: str> [-arg argument]\n\
-- operation: One of: FHIST, FHIST_Contrail, diff, F2000_Contrail, F2000\n\
-- variable : One of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL, all\n\
-args:\n\
- -lev : integer in [0, 31]\n\
- -frac: ")
-		sys.exit(0)
-	
-	try:
-		arg1, arg2 = str(sys.argv[1]), str(sys.argv[2])
-	except:
-		print("The two parameters must be valid strings.")
-		sys.exit(0)
-	
-	# frac implemented as stopgap measure. please complete setupParser()
-	ops = ["FHIST", "FHIST_Contrail", "diff", "F2000_Contrail", "F2000"]
-	#ds_vars = ["CLDICE", "AREI", "FREQI", "ICIMR", "IWC", "QRL"]
-	ds_vars = ["AREI", "CLOUD", "IWC", "T"]
-	
-	if arg1 == "frac":
-		for arg in ds_vars:
-			fractionalChange(arg)
-			print()
-		sys.exit(0)
-	
-	#if (arg1 not in ops) or (arg2 not in ds_vars + ["all"]):
-	if False:
-		print("Check usage statement for valid inputs.")
-		sys.exit(0)
-		
-	arg4 = 16 # level
-	
-	if arg2 == "all":
-		if sys.argv[3] == "-lev":
-			try:
-				arg4 = int(sys.argv[4])
-			except:
-				print("-lev must be an integer from [0, 31].")
-				sys.exit(0)
-		for arg in ds_vars:
-			plotAverage(arg1, arg, lev=arg4)
-	else:
-		if sys.argv[3] == "-lev":
-			try:
-				arg4 = int(sys.argv[4])
-			except:
-				print("-lev must be an integer from [0, 31].")
-				sys.exit(0)
-		plotAverage(arg1, arg2, lev=arg4)
+	arbitrary_file = Dataset("/home/kaw/contrails/Ctrl.cam.h0.2005-01.nc")
+
+	datasets, diff, frac, lev, vars = handleArguments()
