@@ -2,25 +2,7 @@
 netCDF file cruncher.
 """
 import os
-
-local = 0
-
-remote_source = ["/net/fusi/raid03/yzw/CESM/CESM2.0/FHISH/",
-		 "/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST/",
-		 "/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/",
-		 "/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000_Contrail/",
-		 "/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000/"]
-
-if local:
-	# see readme
-	os.environ["PROJ_LIB"] = "C:\\Users\\Kyle\\Anaconda3\\Library\\share";
-	src = "Y:\contrails"
-	dest = ""
-else:
-	src = ""
-	dest = ""
-	dpi = 96
-
+from constants import *
 import sys
 from netCDF4 import Dataset
 import numpy as np
@@ -40,13 +22,13 @@ def setupParser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(prog='NetCDF File Cruncher', description='NetCDF file cruncher for contrail simulation datasets.')
 
 	# required arguments
-	parser.add_argument('datasets', action='store_const', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, F2000_Contrail, F2000')
-	parser.add_argument('-v', '--vars', action='store_const', required=True, type=str, nargs='+', help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
+	parser.add_argument('datasets', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, F2000_Contrail, F2000')
+	parser.add_argument('-v', '--vars', required=True, type=str, nargs='+', help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
 	
 	# optional arguments
-	parser.add_argument('-d', '--diff', action='store_true', const=True, help='Analyze two datasets (second minus first).')
-	parser.add_argument('-f', '--frac', action='store_true', const=True, help='Analyze fractional difference. -diff must be supplied.')
-	parser.add_argument('-l', '--lev', action='store_const', type=int, nargs='+', \
+	parser.add_argument('-d', '--diff', action='store_true', help='Analyze two datasets (second minus first).')
+	parser.add_argument('-f', '--frac', action='store_true', help='Analyze fractional difference. -diff must be supplied.')
+	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[17], \
 		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
 	
 	# miscellaneous
@@ -64,9 +46,8 @@ def validateArguments(n: argparse.Namespace):
 	assert len(n.lev) <= 2, "Please specify one or two levels."
 	assert len(n.lev) == 1 or n.lev[1] > n.lev[0], "Ensure the level bounds are in ascending order."
 
-	datasets = ["FHIST", "FHIST_Contrail", "F2000_Contrail", "F2000"]
-	for dataset in n.datasets:
-		assert dataset in datasets, "Invalid dataset names."
+	# for dataset in n.datasets:
+	# 	assert dataset in remote_source.keys(), "Invalid dataset names."
 	for key in n.vars:
 		assert key in arbitrary_file.variables.keys(), "Invalid variable names."
 
@@ -101,16 +82,14 @@ def removeCommonSubstring(l: list) -> list:
 	"""
 	# length checking
 	if len(l) == 1:
-		print("The longest common substring is the entirety of the single\
-			   element of the input list. Returning the input list.")
+		print("The longest common substring is the entirety of the single element of the input list. Returning the input list.")
 		return l
 	
 	# type checking within list + finding the length of the shortest string
 	shortest_len = sys.maxsize
 	for i in range(0, len(l)):
 		if not isinstance(l[i], str):
-			print("Each element in the list must be a string. Returning the\
-				   input list.")
+			print("Each element in the list must be a string. Returning the input list.")
 			return l
 		elif len(l[i]) < shortest_len:
 			shortest_len = len(l[i])
@@ -139,52 +118,6 @@ def basemapPlot(m, lon, lat, var, var_units, frac_clim = False):
 	if frac_clim:
 		cbar.clim(-1, 1)
 
-def plot():
-	if local:
-		# single file
-		ds = Dataset("Y:\contrails\Ctrl.cam.h0.2005-01.nc")
-		lats = ds.variables['lat'][:]
-		lons = ds.variables['lon'][:]
-		var = ds.variables['TGCLDIWP'][:]
-		var_units = ds.variables['TGCLDIWP'].units
-		
-		# set up stereographic projection
-		lon_0 = lons.mean()
-		lat_0 = lats.mean()
-		
-		lon, lat = np.meshgrid(lons, lats)
-		m = Basemap(width=40000000, height=20000000, resolution='l', projection='stere', \
-			lat_ts=40, lat_0=lat_0, lon_0=lon_0)
-		m1 = Basemap(projection='merc', llcrnrlat=-80, urcrnrlat=80, llcrnrlon=0, \
-			urcrnrlon=360, lat_ts=20, resolution='l')
-		basemapPlot(m1, lon, lat, var, var_units)
-	else:
-		m = Basemap(projection='merc',llcrnrlat=-80,urcrnrlat=80,    
-				    llcrnrlon=0,urcrnrlon=360,lat_ts=20,resolution='l')
-		for src in remote_source:
-			files = [f for f in listdir(src) if isfile(join(src, f))]
-			dest = "/home/kaw/contrails" + src
-			if not os.path.exists(dest):
-				os.makedirs(dest)
-			plt.figure(figsize =(1920/dpi, 1080/dpi), dpi=dpi)
-			for x in range(0, len(files)):
-				ds = Dataset(src + files[x])
-				lats = ds.variables['lat'][:]
-				lons = ds.variables['lon'][:]
-				var = ds.variables['TGCLDIWP'][:]
-				var_units = ds.variables['TGCLDIWP'].units
-				
-				# set up stereographic projection
-				lon_0 = lons.mean()
-				lat_0 = lats.mean()
-				lon, lat = np.meshgrid(lons, lats)
-				basemapPlot(m, lon, lat, var, var_units)
-
-				# add title (based on filepath)
-				plt.title('total grid-box cloud ice water path - ' + files[x][:-3])
-				plt.savefig(dest + files[x][:-3] + ".png", dpi=dpi)
-				plt.clf()
-
 def setupAverage(var_choice: str):
 	ds = arbitrary_file
 	
@@ -202,11 +135,11 @@ def setupAverage(var_choice: str):
 	
 	rmsrc_truncated = removeCommonSubstring(remote_source)
 	
-	print("Setup done.")
+	print("Setup done for variable {0}.".format(var_choice))
 	return all_avg, all_avg_units, lats, lons, rmsrc_truncated
 
 # give this an index corresponding to a filepath in remote_source
-def plotAverage(src: str, var: str, lev: int = 16):
+def plotAverage(datasets, src: str, var: str, lev: int = 16):
 	var_choice = var
 	diff = False
 	if src == "diff":
@@ -256,8 +189,8 @@ def plotAverage(src: str, var: str, lev: int = 16):
 
 	else:
 		# TODO: MAKE THIS AN ACTUAL GENERALIZABLE APPROACH
+		#src, src2 = remote_source[datasets[0]], remote_source[datasets[1]]
 		src, src2 = remote_source[1], remote_source[2]
-		#src, src2 = remote_source[3], remote_source[4]
 		# files = [f for f in listdir(src) if isfile(join(src, f))]
 		# files2 = [f for f in listdir(src2) if isfile(join(src2, f))]
 		files = [f for f in listdir(src) if isfile(join(src, f)) and 'h0' in f and '2014' in f]
@@ -265,7 +198,7 @@ def plotAverage(src: str, var: str, lev: int = 16):
 		files.sort()
 		files2.sort()
 	
-	print("Averaging begun.")
+	print("Averaging begun for variable {0} and level {1}.".format(var, str(lev)))
 	# this is technically not the best way to do it. after this, we'll have to iterate
 	# through all_avg (lat, lon) again. shouldn't be a huge deal, though.
 	manual_access = 0
@@ -300,38 +233,34 @@ def plotAverage(src: str, var: str, lev: int = 16):
 			all_avg[lat][lon] /= no_files
 	print("Done averaging.")
 
-	# 12/4/20 - removing the 180 degree shift from the longitudes
-
 	lon_0 = 0.5 * (lons[0] + lons[-1]) - 180
 	# 12/4/20 edits
-	m = Basemap(projection = 'robin', lon_0=lon_0, resolution='l')
+	#m = Basemap(projection = 'robin', lon_0=lon_0, resolution='l')
 	#m = Basemap(projection = 'robin', lon_0=0, resolution='l')
 
-	# for hawaii to LA
-	#m = Basemap(projection='merc',llcrnrlat=13.66,urcrnrlat=41,llcrnrlon=-165,urcrnrlon=-106.25,resolution='h')
-	# lats: 110:140, 13.66492147 to 40.9947644
-	# lons: 12:60, -165 to -106.25 (before shiftgrid and -360)
-	# var[0][12:60, 110:140]
-
-	# quick fix to re-order longitude values
-	# print("Attempting shifting.")
+	# quick fix to re-order longitude values - robinson projection
+	print("Attempting shifting.")
 	all_avg_shifted, lons_shifted = shiftgrid(lon0=180, datain=all_avg, lonsin=lons, start=True)
 
 	plt.figure(figsize =(1920/dpi, 1080/dpi), dpi=dpi)
 
 	# for hawaii to LA
-	#lon = lon[12:60]
-	#lat = lat[110:140]
-	#all_avg_shifted = all_avg_shifted[110:140, 12:60]
+	#lon = lon[200:250]
+	#lat = lat[15:40]
 
-	#m = Basemap(projection='cyl',llcrnrlat= 15.,urcrnrlat= 40.,\
-    #        	resolution='l',  llcrnrlon= 200.,urcrnrlon=250.)
-	#map.contourf()
+	# for Eastern US: lat = [23:50], lon = [275:300]
+	# for Western Europe: lat = [33:57], lon = [344:393]
+	# for eastern asia: lat = [18:51], lon = [435:502]
 
-	#lon, lat = np.meshgrid(lons, lats)
+	m = Basemap(projection='cyl',llcrnrlat= 15.,urcrnrlat= 51.,\
+            	resolution='h',  llcrnrlon= 445.,urcrnrlon=512.)
+	# m = Basemap(projection='cyl',llcrnrlat= 15.,urcrnrlat= 40.,\
+	# 	resolution='h',  llcrnrlon= 200.,urcrnrlon=250.)
+
 	lon, lat = np.meshgrid(lons_shifted, lats)
 	
 	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units)
+
 	# add title (based on filepath)
 	if not diff:
 		plt.title(var_choice + " averaged for " + rmsrc_truncated + ", level = " + str(lev))
@@ -340,78 +269,16 @@ def plotAverage(src: str, var: str, lev: int = 16):
 		plt.title(var_choice + " averaged for diff" + ", level = " + str(lev))
 		plt.savefig(dest + "diff " + var_choice + "_lev_" + str(lev) + ".png", dpi=dpi)
 	plt.clf()
-
-# okay, we're going to simplify plotAverage() into two smaller methods-- one for diff and one for single
-
-# no_contrail_run = true -> use F2000 data
-# else -> use F2000_Contrail data
-# var <-> property
-# At Yuan's request, this examines the 18th level by default.
-# Also note: this is basically the same as plotAverage without diff. However, this also returns values instead of just plotting.
-def mean(var: str, lev: int, src=remote_source[4], time=0):
-	all_avg, all_avg_units, lats, lons, rmsrc_truncated = setupAverage(var)
-	
-	files = [f for f in listdir(src) if isfile(join(src, f))]
-	files.sort()
-	
-	no_files = 0
-	for x in range(0, len(files)):
-		ds = Dataset(src + files[x])
-		ds_var = ds.variables[var]
-		all_avg[:][:] += ds_var[time][lev][:][:]
-		no_files += 1
-
-	for lat in range(0, all_avg.shape[0]):
-		for lon in range(0, all_avg.shape[1]):
-			all_avg[lat][lon] /= no_files
-	
-	return all_avg, all_avg_units, lats, lons, rmsrc_truncated
-
-def difference(var: str, lev: int, src=(remote_source[2],remote_source[1]), time=0):
-	all_avg, all_avg_units, lats, lons, rmsrc_truncated = setupAverage(var)
-	
-	files = ([f for f in listdir(src[0]) if isfile(join(src[0], f))],
-		     [f for f in listdir(src[1]) if isfile(join(src[1], f))])
-	files[0].sort()
-	files[1].sort()
-	
-	no_files = 0
-	for x in range(0, len(files)):
-		ds = (Dataset(src[0] + files[0][x]), Dataset(src[1] + files[1][x]))
-		ds_var = (ds[0].variables[var], ds[1].variables[var])
-	
-		all_avg[:][:] += (ds_var[1][time][lev][:][:] - ds_var[0][time][lev][:][:])
-		no_files += 1
-
-	return all_avg, all_avg_units, lats, lons, rmsrc_truncated
-
-def fractionalChange(var: str, lev=17, contrail_filepath=remote_source[3], no_contrail_filepath=remote_source[4]):
-	print("Finding fractional change for", var)
-	mean_all_avg, all_avg_units, lats, lons, rmsrc_truncated = mean(var, lev, src=no_contrail_filepath)
-	difference_all_avg, _, _, _, _ = difference(var, lev, src=(contrail_filepath, no_contrail_filepath))
-	
-	frac = mean_all_avg / difference_all_avg
-	print("Average calculated.")
-	
-	# todo: move this to a distinct plotting method that takes data as input
-	lon_0 = 0.5 * (lons[0] + lons[-1]) - 180
-	m = Basemap(projection = 'robin', lon_0=lon_0, resolution='l')
-	print("Attempting shifting.")
-	all_avg_shifted, lons_shifted = shiftgrid(lon0=180, datain=frac[0][lev], lonsin=lons, start=True)
-
-	plt.figure(figsize =(1920/dpi, 1080/dpi), dpi=dpi)
-	lon, lat = np.meshgrid(lons_shifted, lats)
-	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units, frac_clim=True)
-
-	plt.title(var + " - fractional change" + ", level = " + str(lev))
-	plt.savefig(dest + "frac " + var + "_lev_" + str(lev) + ".png", dpi=dpi)
-	plt.clf()
 	
 if __name__ == "__main__":
 	if local:
 		print("Please don't run it like this.")
 		sys.exit(0)
 	
-	arbitrary_file = Dataset("/home/kaw/contrails/Ctrl.cam.h0.2005-01.nc")
+	arbitrary_file = Dataset(arbitrary_filepath)
 
-	datasets, diff, frac, lev, vars = handleArguments()
+	datasets, diff, frac, lev, var = handleArguments()
+
+	for v in var:
+		for l in range(lev[0], lev[1] + 1):
+			plotAverage(datasets, "diff", v, l)
