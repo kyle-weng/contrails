@@ -3,3 +3,4 @@
 .git/
 __pycache__/
 Ctrl.cam.h0.2005-01.nc
+**/*.png
