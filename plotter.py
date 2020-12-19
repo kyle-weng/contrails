@@ -97,11 +97,14 @@ def removeCommonSubstring(l: list) -> list:
 	ind = searchCommonSubstring(shortest_len, l)
 	return [e[ind:] for e in l]
 
-def basemapPlot(m, lon, lat, var, var_units, frac_clim = False):
+def basemapPlot(m, lon, lat, var, var_units, min_val=None, max_val=None):
 	xi, yi = m((lon), lat)
 	
 	# Plot Data
-	cs = m.pcolormesh(xi,yi,np.squeeze(var),cmap=cm.RdBu)
+	if min_val != None and max_val != None:
+		cs = m.pcolormesh(xi,yi,np.squeeze(var),cmap=cm.RdBu, vmin=min_val, vmax=max_val)
+	else:
+		cs = m.pcolormesh(xi,yi,np.squeeze(var),cmap=cm.RdBu)
 	
 	# Add Grid Lines
 	m.drawparallels(np.arange(-90., 91., 10.), labels=[1,0,0,0])
@@ -115,8 +118,6 @@ def basemapPlot(m, lon, lat, var, var_units, frac_clim = False):
 	# Add Colorbar
 	cbar = m.colorbar(cs, location='bottom', pad="10%")
 	cbar.set_label(var_units)
-	if frac_clim:
-		cbar.clim(-1, 1)
 
 def setupAverage(var_choice: str):
 	ds = arbitrary_file
@@ -170,7 +171,7 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 	time = 0
 	no_files = 0
 	
-	all_avg = all_avg[time][lev][:][:]
+	all_avg = all_avg[time, lev, :, :]
 	
 	dest = "/home/kaw/contrails/average_all_months/"
 	if not os.path.exists(dest):
@@ -201,6 +202,8 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 	print("Averaging begun for variable {0} and level {1}.".format(var, str(lev)))
 	# this is technically not the best way to do it. after this, we'll have to iterate
 	# through all_avg (lat, lon) again. shouldn't be a huge deal, though.
+
+	# todo: make indexing more efficient (are for loops necessary?)
 	manual_access = 0
 	if manual_access:
 		for x in range(0, len(files)):
@@ -208,14 +211,14 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 			ds_var = ds.variables[var_choice]
 			for lat in range(0, all_avg.shape[0]):
 				for lon in range(0, all_avg.shape[1]):
-					all_avg[lat][lon] += ds_var[time][lev][lat][lon]
+					all_avg[lat, lon] += ds_var[time, lev, lat, lon]
 			no_files += 1
 	else:
 		if not diff:
 			for x in range(0, len(files)):
 				ds = Dataset(src + files[x])
 				ds_var = ds.variables[var_choice]
-				all_avg[:][:] += ds_var[time][lev][:][:]
+				all_avg[:, :] += ds_var[time, lev, :, :]
 				no_files += 1
 		else:
 			for x in range(0, len(files)):
@@ -225,12 +228,12 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 				ds2 = Dataset(src2 + files2[x])
 				ds_var2 = ds2.variables[var_choice]
 				
-				all_avg[:][:] += (ds_var2[time][lev][:][:] - ds_var[time][lev][:][:])
+				all_avg[:, :] += (ds_var2[time, lev, :, :] - ds_var[time, lev, :, :])
 				no_files += 1
 
 	for lat in range(0, all_avg.shape[0]):
 		for lon in range(0, all_avg.shape[1]):
-			all_avg[lat][lon] /= no_files
+			all_avg[lat, lon] /= no_files
 	print("Done averaging.")
 
 	lon_0 = 0.5 * (lons[0] + lons[-1]) - 180
@@ -250,16 +253,27 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 
 	# for Eastern US: lat = [23:50], lon = [275:300]
 	# for Western Europe: lat = [33:57], lon = [344:393]
-	# for eastern asia: lat = [18:51], lon = [435:502]
+	# for eastern asia: lat = [15:51], lon = [445:512]
 
-	m = Basemap(projection='cyl',llcrnrlat= 15.,urcrnrlat= 51.,\
-            	resolution='h',  llcrnrlon= 445.,urcrnrlon=512.)
+	lat_min = 15
+	lat_max = 40
+	lon_min = 200
+	lon_max = 250
+
+	# calculate minimum and maximum within plotted area-- for colorbar limits
+	a = np.logical_and(lats >= lat_min, lats < lat_max)
+	b = np.logical_and(lons >= lon_min - 180, lons <= lon_max - 180)
+	min_val = all_avg_shifted[a, :][:, b].min()
+	max_val = all_avg_shifted[a, :][:, b].max()
+
+	m = Basemap(projection='cyl', llcrnrlat=lat_min, urcrnrlat=lat_max, \
+            	resolution='h', llcrnrlon=lon_min, urcrnrlon=lon_max)
 	# m = Basemap(projection='cyl',llcrnrlat= 15.,urcrnrlat= 40.,\
 	# 	resolution='h',  llcrnrlon= 200.,urcrnrlon=250.)
 
 	lon, lat = np.meshgrid(lons_shifted, lats)
 	
-	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units)
+	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units, min_val, max_val)
 
 	# add title (based on filepath)
 	if not diff:
