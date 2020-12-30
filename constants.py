@@ -2,11 +2,14 @@ import sys
 import os
 
 local = sys.platform == 'win32'
+h_res = 960
+v_res = 1080
 
 remote_source = [
 	"/net/fusi/raid03/yzw/CESM/CESM2.0/FHISH/",
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST/",
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/",
+    "/home/yzw/contrail/new_emission_run2/",
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000_Contrail/",
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000/"]
 # remote_source = {

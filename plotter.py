@@ -12,53 +12,8 @@ from mpl_toolkits.basemap import shiftgrid
 from mpl_toolkits.basemap import Basemap
 from os import listdir
 from os.path import isfile, join
-import argparse
+from parse import *
 from typing import List, Tuple
-
-def setupParser() -> argparse.ArgumentParser:
-	"""
-	Initialize and return the parser.
-	"""
-	parser = argparse.ArgumentParser(prog='NetCDF File Cruncher', description='NetCDF file cruncher for contrail simulation datasets.')
-
-	# required arguments
-	parser.add_argument('datasets', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, F2000_Contrail, F2000')
-	parser.add_argument('-v', '--vars', required=True, type=str, nargs='+', help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
-	
-	# optional arguments
-	parser.add_argument('-d', '--diff', action='store_true', help='Analyze two datasets (second minus first).')
-	parser.add_argument('-f', '--frac', action='store_true', help='Analyze fractional difference. -diff must be supplied.')
-	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[17], \
-		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
-	
-	# miscellaneous
-	parser.add_argument('--version', action='version', version='%(prog)s 1.1')
-
-	return parser
-
-def validateArguments(n: argparse.Namespace):
-	"""
-	Verify that potentially program-breaking arguments don't break the program-- check interactions that argparse can't
-	catch and/or specific values.
-	"""
-	assert False if n.frac == (not n.diff) else True, "If -f is supplied, -d must be supplied."
-	assert len(n.datasets) < 2 or (len(n.datasets) == 2 and n.diff), "Too many datasets supplied."
-	assert len(n.lev) <= 2, "Please specify one or two levels."
-	assert len(n.lev) == 1 or n.lev[1] > n.lev[0], "Ensure the level bounds are in ascending order."
-
-	# for dataset in n.datasets:
-	# 	assert dataset in remote_source.keys(), "Invalid dataset names."
-	for key in n.vars:
-		assert key in arbitrary_file.variables.keys(), "Invalid variable names."
-
-def handleArguments() -> Tuple[List[str], bool, bool, List[int], List[str]]:
-	"""
-	Overall argument handler.
-	"""
-	parser = setupParser()
-	name = parser.parse_args(sys.argv[1:])
-	validateArguments(name)
-	return name.datasets, name.diff, name.frac, name.lev, name.vars
 
 def searchCommonSubstring(shortest_len: int, l: list) -> int:
 	"""
@@ -245,7 +200,7 @@ def plotAverage(datasets, src: str, var: str, lev: int = 16):
 	print("Attempting shifting.")
 	all_avg_shifted, lons_shifted = shiftgrid(lon0=180, datain=all_avg, lonsin=lons, start=True)
 
-	plt.figure(figsize =(1920/dpi, 1080/dpi), dpi=dpi)
+	plt.figure(figsize =(res[0]/dpi, res[1]/dpi), dpi=dpi)
 
 	# for hawaii to LA
 	#lon = lon[200:250]
@@ -288,10 +243,8 @@ if __name__ == "__main__":
 	if local:
 		print("Please don't run it like this.")
 		sys.exit(0)
-	
-	arbitrary_file = Dataset(arbitrary_filepath)
 
-	datasets, diff, frac, lev, var = handleArguments()
+	datasets, diff, frac, lev, var, res = handleArguments()
 
 	for v in var:
 		for l in range(lev[0], lev[1] + 1):
