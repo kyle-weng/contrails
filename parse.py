@@ -1,7 +1,7 @@
 import argparse
 import sys
 from typing import List, Tuple
-from constants import arbitrary_filepath, default_res, default_lev, version
+from constants import arbitrary_filepath, default_res, default_lev, version, locations
 from netCDF4 import Dataset
 
 arbitrary_file = Dataset(arbitrary_filepath)
@@ -23,7 +23,9 @@ def setupParser() -> argparse.ArgumentParser:
 		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
 	parser.add_argument('-r', '--res', type=int, nargs=2, default=default_res, help='Resolution (horizontal, vertical). Defaults to 1920 x 1080.')
 	parser.add_argument('-i', '--integration', action='store_true', help='Short-circuit normal decision logic and integrate IWC values.')
-	
+	parser.add_argument('--region', type=int, nargs=1, choices=list(locations.keys()), \
+		help='Plot a specific area. See constants.py for areas.')
+
 	# miscellaneous
 	parser.add_argument('--version', action='version', version='%(prog)s {0}'.format(version))
 
@@ -55,4 +57,4 @@ def handleArguments() -> Tuple[List[str], bool, bool, List[int], List[str]]:
 	parser = setupParser()
 	name = parser.parse_args(sys.argv[1:])
 	validateArguments(name)
-	return name.datasets, name.diff, name.frac, name.lev, name.vars, name.res, name.integration
+	return name.datasets, name.diff, name.frac, name.lev, name.vars, name.res, name.integration, name.region

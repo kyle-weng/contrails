@@ -16,10 +16,8 @@ from parse import *
 from typing import List, Tuple
 
 def searchCommonSubstring(shortest_len: int, l: list) -> int:
-	"""
-	Given a list of substrings and the length of the shortest substring, find the farthest/greatest index at which a 
-	slash occurs before the strings diverge.
-	"""
+	""" Given a list of substrings and the length of the shortest substring, find the farthest/greatest index at which a 
+	slash occurs before the strings diverge. """
 	slash = 0
 	for pos in range(0, shortest_len):
 		for i in range(0, len(l) - 1):
@@ -31,10 +29,8 @@ def searchCommonSubstring(shortest_len: int, l: list) -> int:
 	return slash
 
 def removeCommonSubstring(l: list) -> list:
-	"""
-	Given a list of strings, remove the common substring (beginning from the first element) from each element of the list 
-	and return that list. The substrings must all begin and end at the same indices.
-	"""
+	""" Given a list of strings, remove the common substring (beginning from the first element) from each element of the list 
+	and return that list. The substrings must all begin and end at the same indices. """
 	# length checking
 	if len(l) == 1:
 		print("The longest common substring is the entirety of the single element of the input list. Returning the input list.")
@@ -367,6 +363,113 @@ def integrate(datasets, src: str, var: str = "IWC", month_year_constraint: str =
 
 	# add title (based on filepath)
 	plt.clf()
+
+# goal: rewrite integrate() but allow for single files as well as differences (double files)
+def integrate_temp(datasets, src: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
+	h0_constraint = 'h0'
+
+	# determining whether we're calculating a difference between two files
+	difference = len(src) == 2 # [a, b] -> b - a
+	if difference:
+		src_b = src[1]
+	src_a = src[0]
+
+	# determining bounds on level iteration-- single value or range?
+	# [a] -> level a, [a, b] -> levels a through b, inclusive
+	lev_lower = lev[0]
+	lev_upper = lev[1] + 1 if len(lev) == 2 else lev[0] + 1 # mmm a crunchy ternary operator
+	
+	# specific check: don't integrate starting at lev = 0
+	if lev_lower == 0:
+		print("Can't integrate starting at level 0, as level -1 doesn't exist.")
+
+		# todo: throw an error properly instead of this silly stuff
+		sys.exit(0)
+	
+	all_avg, all_avg_units, lats, lons, rmsrc_truncated, levs = setupAverage(var)
+	if var == "IWC":
+		all_avg_units = 'placeholder units to be swapped'
+	rmsrc_truncated_file = src
+	
+	# else, the following code won't work
+	assert (local == 0), "can't average values when only working with one file"
+	
+	time = 0
+	no_files = 0
+	
+	# note that 'lev' as an input variable here is functionally useless. this sums over all levs, but
+	# we'll just stick everything in a single level
+	all_avg = all_avg[time, 16, :, :]
+	
+	if not os.path.exists(dest):
+		os.makedirs(dest)
+
+	# this code is pretty spaghetti. there's probably a better way to rewrite this. you can remove a bit
+	# of the redundancy (files = ...), but it'll make the code that much more unreadable.
+	if difference:
+		if not month_year_constraint:
+			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f]
+			files2 = [f for f in listdir(src_b) if isfile(join(src_b, f)) and h0_constraint in f]
+		else:
+			print("Month/year constraint is {0}".format(month_year_constraint))
+			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f and month_year_constraint in f]
+			files2 = [f for f in listdir(src_b) if isfile(join(src_b, f)) and h0_constraint in f and month_year_constraint in f]
+		files.sort()
+		files2.sort()
+	else:
+		if not month_year_constraint:
+			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f]
+		else:
+			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f and month_year_constraint in f]
+		files.sort()
+
+	# IWC integration -> ice water path
+	if var == "IWC":
+		for x in range(0, len(files)):
+			print("File no. {0}".format(x))
+			for i in range(lev_lower, lev_upper):
+				print("\tAdding: level {0}\t{1} hPa".format(i, levs[i]))
+				ds_a = Dataset(src_a + files[x]).variables[var]
+				ds_b = Dataset(src_b + files2[x]).variables[var]
+				
+				delta_p = levs[i] - levs[i - 1]
+				adjustment = -1 * delta_p / g
+				term = (ds_b[time, i, :, :] - ds_a[time, i, :, :]) * adjustment
+				all_avg[:, :] += term
+	else:
+		print("integration undefined for non-IWC variables.")
+		sys.exit(0) # throw an error instead later
+			
+
+	lon_0 = 0.5 * (lons[0] + lons[-1]) - 180
+
+	print("Attempting shifting.")
+	all_avg_shifted, lons_shifted = shiftgrid(lon0=180, datain=all_avg, lonsin=lons, start=True)
+
+	# coordinate selection
+	location = locations[region]
+	lat_min = location['lat_min']
+	lat_max = location['lat_max']
+	lon_min = location['lon_min']
+	lon_max = location['lon_max']
+
+	# calculate minimum and maximum within plotted area-- for colorbar limits
+	a = np.logical_and(lats >= lat_min, lats < lat_max)
+	b = np.logical_and(lons >= lon_min - 180, lons <= lon_max - 180)
+	min_val = all_avg_shifted[a, :][:, b].min()
+	max_val = all_avg_shifted[a, :][:, b].max()
+
+	m = Basemap(projection='cyl', llcrnrlat=lat_min, urcrnrlat=lat_max, \
+            	resolution='h', llcrnrlon=lon_min, urcrnrlon=lon_max)
+
+	lon, lat = np.meshgrid(lons_shifted, lats)
+
+	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units, min_val=-5e-6, max_val=10e-6)
+	plt.title(var + " integration, " + month_year_constraint)
+	plt.savefig(dest + var + " integration, " + month_year_constraint + ".png", dpi=dpi)
+
+	# add title (based on filepath)
+	plt.clf()
 	
 if __name__ == "__main__":
 	if local:
@@ -381,7 +484,7 @@ if __name__ == "__main__":
 	if integration:
 		for i in range(1, 6 + 1):
 			#integrate(datasets, "diff", month_year_constraint="2020-0{0}".format(i))
-			integrate(datasets, "diff", var="AREI", month_year_constraint="2020-0{0}".format(i))
+			integrate_temp(datasets, var="IWC", month_year_constraint="2020-0{0}".format(i))
 		plt.close()
 		sys.exit(0)
 
