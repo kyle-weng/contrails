@@ -1,7 +1,7 @@
 import argparse
 import sys
 from typing import List, Tuple
-from constants import arbitrary_filepath
+from constants import arbitrary_filepath, default_res, default_lev, version
 from netCDF4 import Dataset
 
 arbitrary_file = Dataset(arbitrary_filepath)
@@ -19,12 +19,13 @@ def setupParser() -> argparse.ArgumentParser:
 	# optional arguments
 	parser.add_argument('-d', '--diff', action='store_true', help='Analyze two datasets (second minus first).')
 	parser.add_argument('-f', '--frac', action='store_true', help='Analyze fractional difference. -diff must be supplied.')
-	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[17], \
+	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[default_lev], \
 		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
-	parser.add_argument('-r', '--res', type=int, nargs=2, default=[1920, 1080], help='Resolution (horizontal, vertical). Defaults to 1920 x 1080.')
+	parser.add_argument('-r', '--res', type=int, nargs=2, default=default_res, help='Resolution (horizontal, vertical). Defaults to 1920 x 1080.')
+	parser.add_argument('-i', '--integration', action='store_true', help='Short-circuit normal decision logic and integrate IWC values.')
 	
 	# miscellaneous
-	parser.add_argument('--version', action='version', version='%(prog)s 1.1')
+	parser.add_argument('--version', action='version', version='%(prog)s {0}'.format(version))
 
 	return parser
 
@@ -54,4 +55,4 @@ def handleArguments() -> Tuple[List[str], bool, bool, List[int], List[str]]:
 	parser = setupParser()
 	name = parser.parse_args(sys.argv[1:])
 	validateArguments(name)
-	return name.datasets, name.diff, name.frac, name.lev, name.vars, name.res
+	return name.datasets, name.diff, name.frac, name.lev, name.vars, name.res, name.integration
