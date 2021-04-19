@@ -394,11 +394,7 @@ def integrate_temp(datasets: List[str], var: str, lev: List[int], region: int, m
 		all_avg_units = 'placeholder units to be swapped'
 	rmsrc_truncated_file = src
 	
-	# else, the following code won't work
-	assert (local == 0), "can't average values when only working with one file"
-	
 	time = 0
-	no_files = 0
 	
 	# note that 'lev' as an input variable here is functionally useless. this sums over all levs, but
 	# we'll just stick everything in a single level
@@ -419,6 +415,7 @@ def integrate_temp(datasets: List[str], var: str, lev: List[int], region: int, m
 			files2 = [f for f in listdir(src_b) if isfile(join(src_b, f)) and h0_constraint in f and month_year_constraint in f]
 		files.sort()
 		files2.sort()
+		assert len(files) == len(files2), "can't compute difference between uneven file sets"
 	else:
 		if not month_year_constraint:
 			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f]
@@ -428,17 +425,31 @@ def integrate_temp(datasets: List[str], var: str, lev: List[int], region: int, m
 
 	# IWC integration -> ice water path
 	if var == "IWC":
-		for x in range(0, len(files)):
-			print("File no. {0}".format(x))
-			for i in range(lev_lower, lev_upper):
-				print("\tAdding: level {0}\t{1} hPa".format(i, levs[i]))
-				ds_a = Dataset(src_a + files[x]).variables[var]
-				ds_b = Dataset(src_b + files2[x]).variables[var]
-				
-				delta_p = levs[i] - levs[i - 1]
-				adjustment = -1 * delta_p / g
-				term = (ds_b[time, i, :, :] - ds_a[time, i, :, :]) * adjustment
-				all_avg[:, :] += term
+		if difference:
+			for x in range(0, len(files)):
+				print("File no. {0}".format(x))
+				for i in range(lev_lower, lev_upper):
+					print("\tAdding: level {0}\t{1} hPa".format(i, levs[i]))
+					ds_a = Dataset(src_a + files[x]).variables[var]
+					ds_b = Dataset(src_b + files2[x]).variables[var]
+					
+					delta_p = levs[i] - levs[i - 1]
+					adjustment = -1 * delta_p / g
+					term = (ds_b[time, i, :, :] - ds_a[time, i, :, :]) * adjustment
+					all_avg[:, :] += term
+		else:
+			# single file time
+			for x in range(0, len(files)):
+				print("File no. {0}".format(x))
+				for i in range(lev_lower, lev_upper):
+					print("\tAdding: level {0}\t{1} hPa".format(i, levs[i]))
+					ds_a = Dataset(src_a + files[x]).variables[var]
+					
+					delta_p = levs[i] - levs[i - 1]
+					adjustment = -1 * delta_p / g
+					term = (ds_a[time, i, :, :]) * adjustment
+					all_avg[:, :] += term
+
 	else:
 		print("integration undefined for non-IWC variables.")
 		sys.exit(0) # throw an error instead later
@@ -467,7 +478,7 @@ def integrate_temp(datasets: List[str], var: str, lev: List[int], region: int, m
 	lon, lat = np.meshgrid(lons_shifted, lats)
 
 	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units, min_val=-5e-6, max_val=10e-6)
-	plt.title(var + " integration, " + month_year_constraint)
+	plt.title(var + " integration" + (difference * " difference") + ", " + month_year_constraint)
 	plt.savefig(dest + var + " integration, " + month_year_constraint + ".png", dpi=dpi)
 
 	# add title (based on filepath)
