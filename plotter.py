@@ -365,14 +365,17 @@ def integrate(datasets, src: str, var: str = "IWC", month_year_constraint: str =
 	plt.clf()
 
 # goal: rewrite integrate() but allow for single files as well as differences (double files)
-def integrate_temp(datasets, src: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
+def integrate_temp(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
 	h0_constraint = 'h0'
 
 	# determining whether we're calculating a difference between two files
-	difference = len(src) == 2 # [a, b] -> b - a
+	difference = len(datasets) == 2 # [a, b] -> b - a
 	if difference:
-		src_b = src[1]
-	src_a = src[0]
+		# python3 plotter.py /filepath2 /filepath1 -> filepath2 - filepath1
+		src_b = datasets[0]
+		src_a = datasets[1]
+	else:
+		src_a = datasets[0]
 
 	# determining bounds on level iteration-- single value or range?
 	# [a] -> level a, [a, b] -> levels a through b, inclusive
@@ -439,7 +442,6 @@ def integrate_temp(datasets, src: List[str], var: str, lev: List[int], region: i
 	else:
 		print("integration undefined for non-IWC variables.")
 		sys.exit(0) # throw an error instead later
-			
 
 	lon_0 = 0.5 * (lons[0] + lons[-1]) - 180
 
@@ -476,15 +478,17 @@ if __name__ == "__main__":
 		print("Please don't run it like this.")
 		sys.exit(0)
 
-	datasets, diff, frac, lev, var, res, integration = handleArguments()
+	datasets, frac, lev, var, res, integration, region = handleArguments()
 
 	plt.figure(figsize=(res[0]/dpi, res[1]/dpi), dpi=dpi)
 
 	# short-circuit normal decision logic for IWC integration
+	# sample:
+	# python3 plotter.py /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_COVID/ /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_nonCOVID/ -v IWC -l 10 15 -i --region 0
 	if integration:
 		for i in range(1, 6 + 1):
 			#integrate(datasets, "diff", month_year_constraint="2020-0{0}".format(i))
-			integrate_temp(datasets, var="IWC", month_year_constraint="2020-0{0}".format(i))
+			integrate_temp(datasets, var="IWC", lev=lev, region=region, month_year_constraint="2020-0{0}".format(i))
 		plt.close()
 		sys.exit(0)
 
@@ -492,6 +496,6 @@ if __name__ == "__main__":
 		for l in range(lev[0], lev[1] + 1):
 			# generalize month-by-month approach
 			for i in range(1, 6 + 1):
-				plotAverage(datasets, "diff", v, l, "2020-0{0}".format(i))
+				plotAverage(datasets, v, l, "2020-0{0}".format(i))
 			#plotAverage(datasets, "diff", v, l)
 	plt.close()
