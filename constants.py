@@ -49,7 +49,26 @@ default_lev = 17
 
 g = 9.8
 
-# for hawaii to LA: lat = lat[15:40], lon = [200:250]
-# for Eastern US: lat = [23:50], lon = [275:300]
-# for Western Europe: lat = [33:57], lon = [344:393]
-# for eastern asia: lat = [15:51], lon = [445:512]
+# coordinates for plotting specific regions/windows
+locations = {
+    0: { 'desc': "Hawaii to LA",
+        'lat_min': 15,
+        'lat_max': 40,
+        'lon_min': 200,
+        'lon_max': 250 },
+    1: { 'desc': "Eastern US",
+        'lat_min': 23,
+        'lat_max': 50,
+        'lon_min': 275,
+        'lon_max': 300 },
+    2: { 'desc': "Western Europe",
+        'lat_min': 33,
+        'lat_max': 57,
+        'lon_min': 344,
+        'lon_max': 393 },
+    3: { 'desc': "Eastern Asia",
+        'lat_min': 15,
+        'lat_max': 51,
+        'lon_min': 445,
+        'lon_max': 512 },
+}
