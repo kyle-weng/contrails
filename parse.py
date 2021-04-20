@@ -18,7 +18,7 @@ def setupParser() -> argparse.ArgumentParser:
 	
 	# optional arguments
 	parser.add_argument('-f', '--frac', action='store_true', help='Analyze fractional difference. -diff must be supplied.')
-	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[default_lev], \
+	parser.add_argument('-l', '--lev', type=int, nargs='+', default=[0, 31], \
 		help='level (pressure, hPa). Integer from [0, 31]. Supply two ints in ascending order for an inclusive range of plots by level.')
 	parser.add_argument('-r', '--res', type=int, nargs=2, default=default_res, help='Resolution (horizontal, vertical). Defaults to 1920 x 1080.')
 	parser.add_argument('-i', '--integration', action='store_true', help='Short-circuit normal decision logic and integrate IWC values.')
@@ -40,11 +40,11 @@ def validateArguments(n: argparse.Namespace):
 			raise argparse.ArgumentTypeError(message)
 
 	check(len(n.datasets) == 2 if n.frac else True, "Two datasets necessary for fractional difference analysis.")
-	print(n.datasets)
 	check(len(n.datasets) <= 2, "Too many datasets supplied.")
 	check(len(n.lev) <= 2, "Please specify one or two levels.")
 	check(len(n.lev) == 1 or n.lev[1] > n.lev[0], "The level bounds must be in ascending order.")
 	check(n.res[0] > 0 and n.res[1] > 0, "Resolution dimensions must be positive.")
+	check(n.lev[0] > 0 if n.integration else True, "Can't integrate level 0 because level -1 doesn't exist.")
 
 	# for dataset in n.datasets:
 	# 	assert dataset in remote_source.keys(), "Invalid dataset names."
