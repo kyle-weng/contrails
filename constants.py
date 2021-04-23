@@ -15,19 +15,6 @@ remote_source = [
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000_Contrail/",
 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000/",
     "/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_nonCOVID/"]
-# remote_source = [
-# 	"/net/fusi/raid03/yzw/CESM/CESM2.0/FHISH/",
-# 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST/",
-# 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/",
-#     "/home/yzw/contrail/new_emission_run2/",
-# 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000_Contrail/",
-# 	"/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000/"]
-# remote_source = {
-# 	"FHISH": "/net/fusi/raid03/yzw/CESM/CESM2.0/FHISH/",
-# 	"FHIST": "/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST/",
-# 	"FHIST_Contrail": "/net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/",
-# 	"F2000_Contrail": "/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000_Contrail/",
-# 	"F2000": "/net/fusi/raid03/yzw/CESM/CESM2.1.1/F2000/"}
 
 if local:
     arbitrary_filepath = "Y:\contrails\Ctrl.cam.h0.2005-01.nc"

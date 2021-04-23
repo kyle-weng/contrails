@@ -92,42 +92,10 @@ def setupAverage(var_choice: str):
 	return all_avg, all_avg_units, lats, lons, rmsrc_truncated, levs
 
 def average(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
-	h0_constraint = 'h0'
-
 	difference = len(datasets) == 2
-	if difference:
-		src_b = datasets[0]
-		src_a = datasets[1]
-	else:
-		src_a = datasets[0]
-	
-	lev_lower = lev[0]
-	lev_upper = lev[1] + 1 if len(lev) == 2 else lev[0] + 1
 
-	all_avg, all_avg_units, lats, lons, _, levs = setupAverage(var)
-	time = 0
-	all_avg = all_avg[time, 16, :, :] # arbitrary
-	
-	if not os.path.exists(dest):
-		os.makedirs(dest)
-
-	if difference:
-		if not month_year_constraint:
-			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f]
-			files2 = [f for f in listdir(src_b) if isfile(join(src_b, f)) and h0_constraint in f]
-		else:
-			print("Month/year constraint is {0}".format(month_year_constraint))
-			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f and month_year_constraint in f]
-			files2 = [f for f in listdir(src_b) if isfile(join(src_b, f)) and h0_constraint in f and month_year_constraint in f]
-		files.sort()
-		files2.sort()
-		assert len(files) == len(files2), "can't compute difference between uneven file sets"
-	else:
-		if not month_year_constraint:
-			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f]
-		else:
-			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f and month_year_constraint in f]
-		files.sort()
+	src_a, src_b, lev_lower, lev_upper, all_avg, all_avg_units, lats, lons, levs, files, files2, time = \
+		setup_temp(difference, datasets, var, lev, month_year_constraint)
 
 	# summing
 	if difference:
@@ -181,12 +149,9 @@ def average(datasets: List[str], var: str, lev: List[int], region: int, month_ye
 	plt.savefig(dest + var + " average" + (difference * " difference") + ", " + month_year_constraint + ".png", dpi=dpi)
 	plt.clf()
 
-# goal: rewrite integrate() but allow for single files as well as differences (double files)
-def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
+def setup_temp(difference: bool, datasets: List[str], var: str, lev: List[int], month_year_constraint: str=None):
 	h0_constraint = 'h0'
 
-	# determining whether we're calculating a difference between two files
-	difference = len(datasets) == 2 # [a, b] -> b - a
 	if difference:
 		# python3 plotter.py /filepath2 /filepath1 -> filepath2 - filepath1
 		src_b = datasets[0]
@@ -199,17 +164,7 @@ def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_
 	lev_lower = lev[0]
 	lev_upper = lev[1] + 1 if len(lev) == 2 else lev[0] + 1 # mmm a crunchy ternary operator
 	
-	# specific check: don't integrate starting at lev = 0
-	if lev_lower == 0:
-		print("Can't integrate starting at level 0, as level -1 doesn't exist.")
-
-		# todo: throw an error properly instead of this silly stuff
-		sys.exit(0)
-	
 	all_avg, all_avg_units, lats, lons, _, levs = setupAverage(var)
-	if var == "IWC":
-		all_avg_units = 'g/(m^2)'
-	
 	time = 0
 	
 	# note that 'lev' as an input variable here is functionally useless. this sums over all levs, but
@@ -238,6 +193,17 @@ def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_
 		else:
 			files = [f for f in listdir(src_a) if isfile(join(src_a, f)) and h0_constraint in f and month_year_constraint in f]
 		files.sort()
+	
+	# ugliest return statement I've ever written
+	return src_a, src_b if difference else _, lev_lower, lev_upper, all_avg, all_avg_units, \
+		lats, lons, levs, files, files2 if difference else _, time
+
+# goal: rewrite integrate() but allow for single files as well as differences (double files)
+def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
+	difference = len(datasets) == 2
+
+	src_a, src_b, lev_lower, lev_upper, all_avg, all_avg_units, lats, lons, levs, files, files2, time = \
+		setup_temp(difference, datasets, var, lev, month_year_constraint)
 
 	# IWC integration -> ice water path
 	if var == "IWC":
@@ -291,7 +257,8 @@ def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_
             	resolution='h', llcrnrlon=lon_min, urcrnrlon=lon_max)
 
 	lon, lat = np.meshgrid(lons_shifted, lats)
-
+	if var == "IWC":
+		all_avg_units = 'g/(m^2)'
 	basemapPlot(m, lon, lat, all_avg_shifted, all_avg_units, min_val=-5e-6, max_val=10e-6)
 	plt.title(var + " integration" + (difference * " difference") + ", " + month_year_constraint)
 	plt.savefig(dest + var + " integration" + (difference * " difference") + ", " + month_year_constraint + ".png", dpi=dpi)
