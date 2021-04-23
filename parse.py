@@ -7,8 +7,11 @@ from netCDF4 import Dataset
 arbitrary_file = Dataset(arbitrary_filepath)
 
 def setupParser() -> argparse.ArgumentParser:
-	"""
-	Initialize and return the parser.
+	""" Initialize and return the parser.
+
+	Returns:
+	    The argument parser object.
+	    
 	"""
 	parser = argparse.ArgumentParser(prog='NetCDF File Cruncher', description='NetCDF file cruncher for contrail simulation datasets.')
 
@@ -31,9 +34,12 @@ def setupParser() -> argparse.ArgumentParser:
 	return parser
 
 def validateArguments(n: argparse.Namespace):
-	"""
-	Verify that potentially program-breaking arguments don't break the program-- check interactions that argparse can't
-	catch and/or specific values.
+	""" Verify that potentially program-breaking arguments don't break the program-- 
+	check interactions that argparse can't catch and/or specific values. 
+
+	Args:
+	    n: The namespace of the parser after it has parsed arguments.
+	
 	"""
 	def check(condition, message):
 		if not condition:
@@ -45,14 +51,20 @@ def validateArguments(n: argparse.Namespace):
 	check(len(n.lev) == 1 or n.lev[1] > n.lev[0], "The level bounds must be in ascending order.")
 	check(n.res[0] > 0 and n.res[1] > 0, "Resolution dimensions must be positive.")
 	check(n.lev[0] > 0 if n.integration else True, "Can't integrate level 0 because level -1 doesn't exist.")
-
-	# for dataset in n.datasets:
-	# 	assert dataset in remote_source.keys(), "Invalid dataset names."
 	check(all(key in arbitrary_file.variables.keys() for key in n.vars), "Invalid variable names.")
 
 def handleArguments() -> Tuple[List[str], bool, List[int], List[str], List[int], bool, int]:
-	"""
-	Overall argument handler.
+	""" Overall argument handler.
+
+	Returns:
+		name.datasets: A list of dataset filepaths.
+		name.frac: A boolean indicating whether fractional difference is to be calculated.
+		name.lev: A list describing either a specific level to examine (if length 1) or a range thereof (if length 2).
+		name.vars: A list of variables to analyze.
+		name.res: A list indicating the resolution of the output graphs (width by height).
+		name.integration: A boolean indicating whether a variabie is to be integrated.
+		name.region: An int corresponding to a specific area to plot.
+
 	"""
 	parser = setupParser()
 	name = parser.parse_args(sys.argv[1:])
