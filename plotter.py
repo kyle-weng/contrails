@@ -70,27 +70,6 @@ def basemapPlot(m, lon, lat, var, var_units, min_val=None, max_val=None):
 	cbar = m.colorbar(cs, location='bottom', pad="10%")
 	cbar.set_label(var_units)
 
-def setupAverage(var_choice: str):
-	ds = arbitrary_file
-	
-	lats = ds.variables['lat'][:]
-	lons = ds.variables['lon'][:]
-	levs = ds.variables['lev'][:]
-	
-	# empty/zeroed dataset - ice is a numpy masked array, not a netcdf4 dataset
-	variable = var_choice
-	all_avg = ds.variables[variable][:].copy()
-	all_avg[:] = 0
-	all_avg_units = ds.variables[variable].units
-	
-	# now, we have an empty-equivalent that retains the same shape. we can start
-	# collecting all of the values we need.
-	
-	rmsrc_truncated = removeCommonSubstring(remote_source)
-	
-	print("Setup done for variable {0}.".format(var_choice))
-	return all_avg, all_avg_units, lats, lons, rmsrc_truncated, levs
-
 def average(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
 	difference = len(datasets) == 2
 
@@ -164,7 +143,24 @@ def setup_temp(difference: bool, datasets: List[str], var: str, lev: List[int], 
 	lev_lower = lev[0]
 	lev_upper = lev[1] + 1 if len(lev) == 2 else lev[0] + 1 # mmm a crunchy ternary operator
 	
-	all_avg, all_avg_units, lats, lons, _, levs = setupAverage(var)
+	ds = arbitrary_file
+	
+	lats = ds.variables['lat'][:]
+	lons = ds.variables['lon'][:]
+	levs = ds.variables['lev'][:]
+	
+	# empty/zeroed dataset - ice is a numpy masked array, not a netcdf4 dataset
+	all_avg = ds.variables[var][:].copy()
+	all_avg[:] = 0
+	all_avg_units = ds.variables[var].units
+	
+	# now, we have an empty-equivalent that retains the same shape. we can start
+	# collecting all of the values we need.
+	
+	rmsrc_truncated = removeCommonSubstring(remote_source)
+	
+	print("Setup done for variable {0}.".format(var))
+
 	time = 0
 	
 	# note that 'lev' as an input variable here is functionally useless. this sums over all levs, but
