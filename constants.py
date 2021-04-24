@@ -1,7 +1,8 @@
 import sys
 import os
+from netCDF4 import Dataset
 
-version = 1.11
+version = 1.12
 
 local = sys.platform == 'win32'
 h_res = 960
@@ -27,6 +28,7 @@ else:
     src = ""
     dest = "/home/kaw/contrails/average_all_months/"
     dpi = 96
+arbitrary_file = Dataset(arbitrary_filepath)
 
 #default_res = [1920, 1080]
 

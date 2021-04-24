@@ -2,9 +2,6 @@ import argparse
 import sys
 from typing import List, Tuple
 import constants as c
-from netCDF4 import Dataset
-
-arbitrary_file = Dataset(c.arbitrary_filepath)
 
 def setupParser() -> argparse.ArgumentParser:
 	""" Initialize and return the parser.
@@ -17,7 +14,7 @@ def setupParser() -> argparse.ArgumentParser:
 
 	# required arguments
 	parser.add_argument('datasets', type=str, nargs='+', help='Up to two of: FHIST, FHIST_Contrail, F2000_Contrail, F2000')
-	parser.add_argument('-v', '--vars', required=True, type=str, nargs='+', choices=list(arbitrary_file.variables.keys()), help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
+	parser.add_argument('-v', '--vars', required=True, type=str, nargs='+', choices=list(c.arbitrary_file.variables.keys()), help='At least one of: CLDICE, AREI, FREQI, ICIMR, IWC, QRL')
 	parser.add_argument('-a', '--action', required=True, type=str, choices=list(c.action_choices.keys()), help='One of: average, integrate, fraction')
 	
 	# optional arguments
@@ -44,13 +41,12 @@ def validateArguments(n: argparse.Namespace):
 		if not condition:
 			raise argparse.ArgumentTypeError(message)
 
-	#check(len(n.datasets) == 2 if n.frac else True, "Two datasets necessary for fractional difference analysis.")
+	check(len(n.datasets) == 2 if n.action == 'fraction' else True, "Two datasets necessary for fractional difference analysis.")
 	check(len(n.datasets) <= 2, "Too many datasets supplied.")
 	check(len(n.lev) <= 2, "Please specify one or two levels.")
 	check(len(n.lev) == 1 or n.lev[1] > n.lev[0], "The level bounds must be in ascending order.")
 	check(n.res[0] > 0 and n.res[1] > 0, "Resolution dimensions must be positive.")
-	#check(n.lev[0] > 0 if n.integration else True, "Can't integrate level 0 because level -1 doesn't exist.")
-	#check(all(key in arbitrary_file.variables.keys() for key in n.vars), "Invalid variable names.")
+	check(n.lev[0] > 0 if n.action == 'integrate' else True, "Can't integrate level 0 because level -1 doesn't exist.")
 
 def handleArguments() -> Tuple[List[str], str, List[int], List[str], List[int], int]:
 	""" Overall argument handler.
