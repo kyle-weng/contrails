@@ -59,3 +59,11 @@ locations = {
         'lon_min': 445,
         'lon_max': 512 },
 }
+
+from plotter import average, integrate, fraction
+action_choices = {
+    # choices map to functions (as objects)
+    'average': average,
+    'integrate': integrate,
+    'fraction': fraction
+}

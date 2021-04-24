@@ -261,28 +261,22 @@ def integrate(datasets: List[str], var: str, lev: List[int], region: int, month_
 
 	# add title (based on filepath)
 	plt.clf()
+
+def fraction(datasets: List[str], var: str, lev: List[int], region: int, month_year_constraint: str = None):
+	print("test")
 	
 if __name__ == "__main__":
 	if local:
 		print("Please don't run it like this.")
 		sys.exit(0)
 
-	datasets, frac, lev, var, res, integration, region = handleArguments()
+	datasets, action, lev, vars, res, region = handleArguments()
 
 	plt.figure(figsize=(res[0]/dpi, res[1]/dpi), dpi=dpi)
 
-	# short-circuit normal decision logic for IWC integration
-	# sample:
+	# sample script call:
 	# python3 plotter.py /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_COVID/ /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_nonCOVID/ -v IWC -l 10 15 -i --region 0
-	if integration:
-		for i in range(1, 6 + 1):
-			#integrate(datasets, "diff", month_year_constraint="2020-0{0}".format(i))
-			integrate(datasets, var="IWC", lev=lev, region=region, month_year_constraint="2020-0{0}".format(i))
-		plt.close()
-		sys.exit(0)
-	
-	# python3 plotter.py /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_COVID/ /net/fusi/raid03/yzw/CESM/CESM2.1.1/FHIST_Contrail/2020_nonCOVID/ -v AREI --region 0
-	for v in var:
-		for i in range(1, 6 + 1):
-			average(datasets, var=v, lev=lev, region=region, month_year_constraint="2020-0{0}".format(i))
+	for v in vars:
+		for i in range (1, 6 + 1): # month
+			action_choices[action](datasets, v, lev=lev, region=region, month_year_constraint="2020-0{0}".format(i))
 	plt.close()
